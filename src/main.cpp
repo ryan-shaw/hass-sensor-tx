@@ -41,7 +41,7 @@ RF24Mesh mesh(radio, network);
    This will be stored in EEPROM on AVR devices, so remains persistent between further uploads, loss of power, etc.
 
  **/
-#define nodeID 1
+#define nodeID 2
 
 
 uint32_t displayTimer = 0;
@@ -64,34 +64,7 @@ void setup() {
   Serial.begin(115200);
 
   // Setup  DHT11 sensor
-  dht.begin();
-  // Serial.println("DHTxx Unified Sensor Example");
-  // Print temperature sensor details.
-  sensor_t sensor;
-  dht.temperature().getSensor(&sensor);
-  Serial.println("------------------------------------");
-  Serial.println("Temperature");
-  Serial.print  ("Sensor:       "); Serial.println(sensor.name);
-  Serial.print  ("Driver Ver:   "); Serial.println(sensor.version);
-  Serial.print  ("Unique ID:    "); Serial.println(sensor.sensor_id);
-  Serial.print  ("Max Value:    "); Serial.print(sensor.max_value); Serial.println(" *C");
-  Serial.print  ("Min Value:    "); Serial.print(sensor.min_value); Serial.println(" *C");
-  Serial.print  ("Resolution:   "); Serial.print(sensor.resolution); Serial.println(" *C");  
-  Serial.println("------------------------------------");
-  // Print humidity sensor details.
-  dht.humidity().getSensor(&sensor);
-  Serial.println("------------------------------------");
-  Serial.println("Humidity");
-  Serial.print  ("Sensor:       "); Serial.println(sensor.name);
-  Serial.print  ("Driver Ver:   "); Serial.println(sensor.version);
-  Serial.print  ("Unique ID:    "); Serial.println(sensor.sensor_id);
-  Serial.print  ("Max Value:    "); Serial.print(sensor.max_value); Serial.println("%");
-  Serial.print  ("Min Value:    "); Serial.print(sensor.min_value); Serial.println("%");
-  Serial.print  ("Resolution:   "); Serial.print(sensor.resolution); Serial.println("%");  
-  Serial.println("------------------------------------");
-  // Set delay between sensor readings based on sensor details.
-
-  //printf_begin();
+  pinMode(DHTPIN, INPUT);
   // Set the nodeID manually
   mesh.setNodeID(nodeID);
   // Connect to the mesh
@@ -116,13 +89,16 @@ void send(struct dataStruct msg) {
 }
 
 void loop() {
-
+  radio.powerUp();
   mesh.update();
-
-  // Send to the master node every second
-  if (millis() - displayTimer >= 5 * 60 * 1000) {
+  uint32_t delay = 1000;
+  // if (displayTimer == 0 || millis() - displayTimer >= delay) {
     displayTimer = millis();
-
+    pinMode(DHTPIN, OUTPUT);
+    digitalWrite(DHTPIN, HIGH);
+    dht.begin();
+    LowPower.powerDown(SLEEP_500MS, ADC_OFF, BOD_OFF);
+    digitalWrite(DHTPIN, HIGH);
     sensors_event_t event;  
     dht.temperature().getEvent(&event);
     if (isnan(event.temperature)) {
@@ -154,16 +130,21 @@ void loop() {
       myData.value = event.relative_humidity;
       send(myData);
     }
-
+    radio.powerDown();
+    digitalWrite(DHTPIN, LOW);
+    pinMode(DHTPIN, INPUT);
+  // }
+  for ( int i = 0; i < 75; i++){
+    LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
   }
 
-  while (network.available()) {
-    RF24NetworkHeader header;
-    payload_t payload;
-    network.read(header, &payload, sizeof(payload));
-    Serial.print("Received packet #");
-    Serial.print(payload.counter);
-    Serial.print(" at ");
-    Serial.println(payload.ms);
-  }
+  // while (network.available()) {
+  //   RF24NetworkHeader header;
+  //   payload_t payload;
+  //   network.read(header, &payload, sizeof(payload));
+  //   Serial.print("Received packet #");
+  //   Serial.print(payload.counter);
+  //   Serial.print(" at ");
+  //   Serial.println(payload.ms);
+  // }
 }
