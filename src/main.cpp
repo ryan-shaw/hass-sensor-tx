@@ -23,9 +23,11 @@
 
 
 /**** Configure DHT11 */
-#define DHTPIN 2
+#define DHT_PIN 2
+#define DHT_PWR 3
 #define DHTTYPE DHT11     // DHT 11 
-DHT_Unified dht(DHTPIN, DHTTYPE);
+#define TX_PWR 4
+DHT_Unified dht(DHT_PIN, DHTTYPE);
 
 /**** Configure the nrf24l01 CE and CS pins ****/
 RF24 radio(7, 8);
@@ -42,14 +44,10 @@ RF24Mesh mesh(radio, network);
 
  **/
 #define nodeID 2
+#define DEBUG true
 
 
 uint32_t displayTimer = 0;
-
-struct payload_t {
-  unsigned long ms;
-  unsigned long counter;
-};
 
 struct dataStruct{
   uint16_t sensor;
@@ -61,14 +59,19 @@ dataStruct myData;
 
 void setup() {
 
-  Serial.begin(115200);
+  if(DEBUG) Serial.begin(115200);
 
   // Setup  DHT11 sensor
-  pinMode(DHTPIN, INPUT);
+  pinMode(DHT_PIN, INPUT);
+  pinMode(DHT_PWR, OUTPUT);
+  pinMode(TX_PWR, OUTPUT);
   // Set the nodeID manually
   mesh.setNodeID(nodeID);
   // Connect to the mesh
-  Serial.println(F("Connecting to the mesh..."));
+  if(DEBUG) Serial.println(F("Connecting to the mesh..."));
+  digitalWrite(TX_PWR, HIGH);
+  Serial.flush();
+  LowPower.powerDown(SLEEP_120MS, ADC_OFF, BOD_OFF);
   mesh.begin();
 }
 
@@ -78,73 +81,75 @@ void send(struct dataStruct msg) {
     // If a write fails, check connectivity to the mesh network
     if ( ! mesh.checkConnection() ) {
       //refresh the network address
-      Serial.println("Renewing Address");
+      if(DEBUG) Serial.println("Renewing Address");
       mesh.renewAddress();
     } else {
-      Serial.println("Send fail, Test OK");
+      if(DEBUG) Serial.println("Send fail, Test OK");
     }
   } else {
     Serial.print("Send OK: "); Serial.println(displayTimer);
   }
 }
 
-void loop() {
+void pUp(){
+  Serial.println("Powering up");
+  digitalWrite(TX_PWR, HIGH);
+  Serial.flush();
+  LowPower.powerDown(SLEEP_2S, ADC_OFF, BOD_OFF);
+  mesh.begin();
   radio.powerUp();
   mesh.update();
-  uint32_t delay = 1000;
-  // if (displayTimer == 0 || millis() - displayTimer >= delay) {
-    displayTimer = millis();
-    pinMode(DHTPIN, OUTPUT);
-    digitalWrite(DHTPIN, HIGH);
-    dht.begin();
-    LowPower.powerDown(SLEEP_500MS, ADC_OFF, BOD_OFF);
-    digitalWrite(DHTPIN, HIGH);
-    sensors_event_t event;  
-    dht.temperature().getEvent(&event);
-    if (isnan(event.temperature)) {
-      Serial.println("Error reading temperature!");
-    } else {
-      Serial.print("Temperature: ");
-      Serial.print(event.temperature);
-      Serial.println(" *C");
-      
-      // dataStruct myData;
-      myData.sensor = nodeID;
-      myData.type = TEMP;
-      myData.value = event.temperature;
-      send(myData);
-    }
+  digitalWrite(DHT_PWR, HIGH);
 
-    // Get humidity event and print its value.
-    dht.humidity().getEvent(&event);
-    if (isnan(event.relative_humidity)) {
-      // Serial.println("Error reading humidity!");
-    } else {
-      Serial.print("Humidity: ");
-      Serial.print(event.relative_humidity);
-      Serial.println("%");
+  displayTimer = millis();
+  LowPower.powerDown(SLEEP_2S, ADC_OFF, BOD_OFF);
+  dht.begin();
+}
 
-      // dataStruct myData;
-      myData.sensor = nodeID;
-      myData.type = HUMIDITY;
-      myData.value = event.relative_humidity;
-      send(myData);
-    }
-    radio.powerDown();
-    digitalWrite(DHTPIN, LOW);
-    pinMode(DHTPIN, INPUT);
-  // }
-  for ( int i = 0; i < 75; i++){
+void pDown(){
+  Serial.println("Powering down");
+  Serial.flush();
+  radio.powerDown();
+  LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
+  digitalWrite(TX_PWR, LOW);
+  digitalWrite(DHT_PWR, LOW);
+  for ( int i = 0; i < 1; i++){
     LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
   }
+}
 
-  // while (network.available()) {
-  //   RF24NetworkHeader header;
-  //   payload_t payload;
-  //   network.read(header, &payload, sizeof(payload));
-  //   Serial.print("Received packet #");
-  //   Serial.print(payload.counter);
-  //   Serial.print(" at ");
-  //   Serial.println(payload.ms);
-  // }
+void loop() {
+  pUp();
+  sensors_event_t event;  
+  dht.temperature().getEvent(&event);
+  if (isnan(event.temperature)) {
+    if(DEBUG) Serial.println("Error reading temperature!");
+  } else {
+    if(DEBUG) Serial.print("Temperature: ");
+    if(DEBUG) Serial.print(event.temperature);
+    if(DEBUG) Serial.println(" *C");
+    
+    // dataStruct myData;
+    myData.sensor = nodeID;
+    myData.type = TEMP;
+    myData.value = event.temperature;
+    send(myData);
+  }
+
+  // Get humidity event and print its value.
+  dht.humidity().getEvent(&event);
+  if (isnan(event.relative_humidity)) {
+    // Serial.println("Error reading humidity!");
+  } else {
+    if(DEBUG) Serial.print("Humidity: ");
+    if(DEBUG) Serial.print(event.relative_humidity);
+    if(DEBUG) Serial.println("%");
+
+    // dataStruct myData;
+    myData.sensor = nodeID;
+    myData.type = HUMIDITY;
+    myData.value = event.relative_humidity;
+    send(myData);
+  }
+  pDown();
 }
