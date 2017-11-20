@@ -95,7 +95,7 @@ void pUp(){
   Serial.println("Powering up");
   digitalWrite(TX_PWR, HIGH);
   Serial.flush();
-  LowPower.powerDown(SLEEP_2S, ADC_OFF, BOD_OFF);
+  LowPower.powerDown(SLEEP_120MS, ADC_OFF, BOD_OFF);
   mesh.begin();
   radio.powerUp();
   mesh.update();
@@ -110,10 +110,10 @@ void pDown(){
   Serial.println("Powering down");
   Serial.flush();
   radio.powerDown();
-  LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
+  LowPower.powerDown(SLEEP_120MS, ADC_OFF, BOD_OFF);
   digitalWrite(TX_PWR, LOW);
   digitalWrite(DHT_PWR, LOW);
-  for ( int i = 0; i < 1; i++){
+  for ( int i = 0; i < 75; i++){
     LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
   }
 }
