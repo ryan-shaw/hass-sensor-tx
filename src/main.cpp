@@ -70,7 +70,7 @@ void setup() {
   // Connect to the mesh
   if(DEBUG) Serial.println(F("Connecting to the mesh..."));
   digitalWrite(TX_PWR, HIGH);
-  Serial.flush();
+  if(DEBUG) Serial.flush();
   LowPower.powerDown(SLEEP_120MS, ADC_OFF, BOD_OFF);
   mesh.begin();
 }
@@ -87,32 +87,45 @@ void send(struct dataStruct msg) {
       if(DEBUG) Serial.println("Send fail, Test OK");
     }
   } else {
-    Serial.print("Send OK: "); Serial.println(displayTimer);
+    if(DEBUG) Serial.print("Send OK: "); Serial.println(displayTimer);
   }
 }
 
 void pUp(){
-  Serial.println("Powering up");
+  if(DEBUG) Serial.println("Powering up");
+  for(int i = 7; i < 14; i++){
+    pinMode(i, OUTPUT);
+  }
+  // pinMode(7, OUTPUT); // set ce pin output
+  // pinMode(8, OUTPUT); // set csn pin output
+  pinMode(TX_PWR, OUTPUT);
   digitalWrite(TX_PWR, HIGH);
-  Serial.flush();
+  if(DEBUG) Serial.flush();
   LowPower.powerDown(SLEEP_120MS, ADC_OFF, BOD_OFF);
+  if(DEBUG) Serial.println("Mesh begin");
   mesh.begin();
+  if(DEBUG) Serial.println("Radio power up");
   radio.powerUp();
+  if(DEBUG) Serial.println("Mesh update");
   mesh.update();
   digitalWrite(DHT_PWR, HIGH);
-
+  if(DEBUG) Serial.flush();
   displayTimer = millis();
   LowPower.powerDown(SLEEP_2S, ADC_OFF, BOD_OFF);
   dht.begin();
 }
 
 void pDown(){
-  Serial.println("Powering down");
-  Serial.flush();
+  if(DEBUG) Serial.println("Powering down");
+  if(DEBUG) Serial.flush();
   radio.powerDown();
   LowPower.powerDown(SLEEP_120MS, ADC_OFF, BOD_OFF);
   digitalWrite(TX_PWR, LOW);
+  pinMode(TX_PWR, INPUT_PULLUP);
   digitalWrite(DHT_PWR, LOW);
+  for(int i = 7; i < 14; i++){
+    pinMode(i, INPUT_PULLUP);
+  }
   for ( int i = 0; i < 75; i++){
     LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
   }
@@ -120,6 +133,7 @@ void pDown(){
 
 void loop() {
   pUp();
+  if(DEBUG) Serial.println("Completed powerup");
   sensors_event_t event;  
   dht.temperature().getEvent(&event);
   if (isnan(event.temperature)) {
