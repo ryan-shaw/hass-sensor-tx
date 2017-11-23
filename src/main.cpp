@@ -43,7 +43,7 @@ RF24Mesh mesh(radio, network);
    This will be stored in EEPROM on AVR devices, so remains persistent between further uploads, loss of power, etc.
 
  **/
-#define nodeID 2
+#define nodeID 1
 #define DEBUG true
 
 
@@ -61,6 +61,9 @@ void setup() {
 
   if(DEBUG) Serial.begin(115200);
 
+  // radio.setPALevel(RF24_PA_MAX);
+  // radio.setCRCLength(RF24_CRC_8);
+
   // Setup  DHT11 sensor
   pinMode(DHT_PIN, INPUT);
   pinMode(DHT_PWR, OUTPUT);
@@ -72,7 +75,7 @@ void setup() {
   digitalWrite(TX_PWR, HIGH);
   if(DEBUG) Serial.flush();
   LowPower.powerDown(SLEEP_120MS, ADC_OFF, BOD_OFF);
-  mesh.begin();
+  mesh.begin(MESH_DEFAULT_CHANNEL, RF24_250KBPS, 15000);
 }
 
 void send(struct dataStruct msg) {
@@ -82,7 +85,7 @@ void send(struct dataStruct msg) {
     if ( ! mesh.checkConnection() ) {
       //refresh the network address
       if(DEBUG) Serial.println("Renewing Address");
-      mesh.renewAddress();
+      mesh.renewAddress(15000);
     } else {
       if(DEBUG) Serial.println("Send fail, Test OK");
     }
@@ -103,7 +106,7 @@ void pUp(){
   if(DEBUG) Serial.flush();
   LowPower.powerDown(SLEEP_120MS, ADC_OFF, BOD_OFF);
   if(DEBUG) Serial.println("Mesh begin");
-  mesh.begin();
+  mesh.begin(MESH_DEFAULT_CHANNEL, RF24_250KBPS, 15000);
   if(DEBUG) Serial.println("Radio power up");
   radio.powerUp();
   if(DEBUG) Serial.println("Mesh update");
